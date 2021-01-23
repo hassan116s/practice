@@ -1,0 +1,68 @@
+--- 
+- 
+  hosts: webservers
+  name: "Installing apache & configuring SSL"
+  remote_user: root
+  tasks: 
+    - 
+      name: Installing
+      yum: 
+        name: httpd
+        state: installed
+    - 
+      firewalld: 
+        permanent: true
+        service: https
+        state: enabled
+      name: "opening port \"443\""
+    - 
+      name: "restart firewalld"
+      service: 
+        name: firewalld
+        state: reloaded
+    - 
+      name: "installing mod_ssl"
+      yum: 
+        name: mod_ssl
+        state: installed
+    - 
+      copy: 
+        dest: /var/www/html
+        group: apache
+        mode: 493
+        owner: apache
+        src: /tmp/index.html
+      name: "copying document root"
+    - 
+      file: 
+        mode: 700
+        path: /etc/ssl/private
+        state: directory
+      name: "creating directory for SSL"
+    - 
+      name: "creating SSL cert"
+      openssl_privatekey: 
+        path: /etc/ssl/private/apache-selfsigned.key
+    - 
+      lineinfile: 
+        line: "SSLCertificateKeyFile /etc/ssl/private/apache-selfsigned.key"
+        path: /etc/httpd/conf.d/ssl.conf
+        state: present
+      name: "selecting configurations"
+    - 
+      lineinfile: 
+        line: "SSLCipherSuite HIGH:3DES:!aNULL:!MD5:!SEED:!IDEA"
+        path: /etc/httpd/conf.d/ssl.conf
+        state: absent
+      name: "removing lines"
+    - 
+      copy: 
+        dest: /etc/httpd/conf.d/non-ssl.conf
+        src: /tmp/sslhttps.conf
+      name: "creating file"
+    - 
+      name: "starting httpd"
+      service: 
+        enabled: true
+        name: httpd
+        state: restarted
